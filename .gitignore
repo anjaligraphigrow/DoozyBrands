@@ -1,0 +1,42 @@
+# Frontend
+node_modules/
+dist/
+release/
+installer/
+installer-new/
+.tmp-electron-packager/
+
+# Frontend generated/build output
+# ONLY keep this if frontend/build is generated
+build/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Backend uploaded/generated files
+backend/storage/
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
