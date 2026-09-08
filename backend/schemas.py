@@ -1,6 +1,22 @@
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict, field_serializer
 from typing import Literal
-from datetime import date as DateType, datetime
+from datetime import date as DateType, datetime, timezone
+from typing import Any
+from zoneinfo import ZoneInfo
+
+IST = ZoneInfo("Asia/Kolkata")
+
+
+class APIResponseModel(BaseModel):
+    @field_serializer("*", when_used="json")
+    def serialize_datetime(self, value: Any) -> Any:
+        if not isinstance(value, datetime):
+            return value
+
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+
+        return value.astimezone(IST).isoformat()
 
 class UserRegister(BaseModel):
     name: str
@@ -29,7 +45,7 @@ class ClientCreate(BaseModel):
     client_type: Literal["GST", "NON_GST"]
 
 
-class ClientResponse(BaseModel):
+class ClientResponse(APIResponseModel):
     id: int
     name: str
     client_type: str
@@ -58,7 +74,7 @@ class PrintingOrderUpdate(BaseModel):
     vendor: str | None = None
     status: str | None = None
 
-class PrintingOrderResponse(BaseModel):
+class PrintingOrderResponse(APIResponseModel):
     id: int
     employee_id: int
     employee_name: str
@@ -108,7 +124,7 @@ class TaskUpdate(BaseModel):
     vendor: str | None = None
     remark: str | None = None
 
-class TaskResponse(BaseModel):
+class TaskResponse(APIResponseModel):
     id: int
     employee_id: int
     employee_name: str
@@ -135,7 +151,7 @@ class TaskResponse(BaseModel):
     class Config:
         from_attributes = True
 
-class MonthlyReportResponse(BaseModel):
+class MonthlyReportResponse(APIResponseModel):
     month: int
     year: int
     client_id: int | None
@@ -153,7 +169,7 @@ class MessageDeleteRequest(BaseModel):
     message_ids: list[int]
 
 
-class MessageResponse(BaseModel):
+class MessageResponse(APIResponseModel):
     id: int
     sender_id: int
     receiver_id: int
@@ -164,7 +180,7 @@ class MessageResponse(BaseModel):
     class Config:
         from_attributes = True
 
-class NotificationResponse(BaseModel):
+class NotificationResponse(APIResponseModel):
     id: int
     recipient_id: int
     sender_id: int | None
@@ -178,7 +194,7 @@ class NotificationResponse(BaseModel):
 
     class Config:
         from_attributes = True
-class FileResponse(BaseModel):
+class FileResponse(APIResponseModel):
     id: int
     original_filename: str
     stored_filename: str
@@ -199,7 +215,7 @@ class FileResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-class AdminFileTransferHistoryResponse(BaseModel):
+class AdminFileTransferHistoryResponse(APIResponseModel):
     id: int
     original_filename: str
     file_size: int
@@ -214,7 +230,7 @@ class AdminFileTransferHistoryResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-class AdminFileTransferResponse(BaseModel):
+class AdminFileTransferResponse(APIResponseModel):
     id: int
     original_filename: str
     file_size: int
