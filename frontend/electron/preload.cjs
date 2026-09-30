@@ -8,4 +8,5 @@ contextBridge.exposeInMainWorld("electronAPI", {
       requireInteraction: Boolean(options.requireInteraction),
       silent: Boolean(options.silent),
     }),
+  playAdminCallSound: () => ipcRenderer.invoke("play-admin-call-sound"),
 });

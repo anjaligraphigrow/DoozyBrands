@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import TrashIcon from "../components/TrashIcon";
 import {
+  deleteAllNotifications,
   deleteNotification,
   getNotifications,
   markAllNotificationsRead,
@@ -15,12 +17,14 @@ import type { Notification } from "../types";
 const NORMAL_NOTIFICATION_PREFERENCES_KEY = "notification_preferences";
 
 export default function Notifications() {
+  const navigate = useNavigate();
   const [notifications, setNotifications] =
     useState<Notification[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [markingAll, setMarkingAll] = useState(false);
+  const [clearingAll, setClearingAll] = useState(false);
   const [showMuteOptions, setShowMuteOptions] = useState(false);
   const [messageNotifications, setMessageNotifications] = useState(() =>
     getNormalNotificationPreference("messages"),
@@ -133,7 +137,41 @@ export default function Notifications() {
     }
   }
 
-  const unreadCount = notifications.filter(
+  function handleOpenFileNotification(notification: Notification) {
+    navigate("/files");
+
+    if (!notification.is_read) {
+      void markNotificationRead(notification.id)
+        .then(() => window.dispatchEvent(new Event("office-badges-refresh")))
+        .catch(() => undefined);
+    }
+  }
+
+  async function handleClearAll() {
+    if (!window.confirm("Clear all notifications?")) {
+      return;
+    }
+
+    setClearingAll(true);
+    setError("");
+
+    try {
+      await deleteAllNotifications();
+      setNotifications((current) =>
+        current.filter((notification) => notification.notification_type === "message"),
+      );
+      window.dispatchEvent(new Event("office-badges-refresh"));
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Unable to clear notifications."));
+    } finally {
+      setClearingAll(false);
+    }
+  }
+
+  const visibleNotifications = notifications.filter(
+    (notification) => notification.notification_type !== "message",
+  );
+  const unreadCount = visibleNotifications.filter(
     (notification) => !notification.is_read,
   ).length;
 
@@ -194,6 +232,16 @@ export default function Notifications() {
             )}
           </div>
 
+          {visibleNotifications.length > 0 && (
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={handleClearAll}
+              disabled={clearingAll}
+            >
+              {clearingAll ? "Clearing..." : "Clear All"}
+            </button>
+          )}
           {unreadCount > 0 && (
             <button
               type="button"
@@ -218,14 +266,14 @@ export default function Notifications() {
           <div className="page-loading">
             Loading notifications...
           </div>
-        ) : notifications.length === 0 ? (
+        ) : visibleNotifications.length === 0 ? (
           <div className="empty-state">
             <h3>No notifications</h3>
             <p>You're all caught up.</p>
           </div>
         ) : (
           <div className="notifications-list">
-            {notifications.map((notification) => (
+            {visibleNotifications.map((notification) => (
               <div
                 key={notification.id}
                 className={
@@ -235,7 +283,17 @@ export default function Notifications() {
                 }
               >
                 <div>
-                  <h3>{notification.title}</h3>
+                  <h3>
+                    {notification.notification_type === "file_received" ? (
+                      <button
+                        type="button"
+                        className="notification-file-title"
+                        onClick={() => handleOpenFileNotification(notification)}
+                      >
+                        {notification.title}
+                      </button>
+                    ) : notification.title}
+                  </h3>
 
                   {notification.message && (
                     <p>{notification.message}</p>

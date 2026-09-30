@@ -64,8 +64,8 @@ export default function Files() {
       }[]
     >([]);
 
-  const [selectedRecipientId, setSelectedRecipientId] =
-    useState<number | null>(null);
+  const [selectedRecipientIds, setSelectedRecipientIds] =
+    useState<number[]>([]);
 
   const [selectedFiles, setSelectedFiles] =
     useState<SelectedUpload[]>([]);
@@ -205,6 +205,14 @@ export default function Files() {
     cancelRequestedRef.current = true;
   }
 
+  function toggleRecipient(recipientId: number) {
+    setSelectedRecipientIds((current) =>
+      current.includes(recipientId)
+        ? current.filter((id) => id !== recipientId)
+        : [...current, recipientId],
+    );
+  }
+
   async function handleDownload(
     file: FileItem,
   ) {
@@ -262,7 +270,7 @@ export default function Files() {
   async function handleUpload() {
     if (
       selectedFiles.length === 0 ||
-      !selectedRecipientId ||
+      selectedRecipientIds.length === 0 ||
       uploading
     ) {
       return;
@@ -292,7 +300,7 @@ export default function Files() {
 
         await uploadLargeFile(
           file,
-          selectedRecipientId,
+          selectedRecipientIds,
           (fileProgress) => {
             setProgress(
               Math.round(
@@ -357,9 +365,19 @@ export default function Files() {
       folderId?: string;
       folderName?: string;
       files?: FileItem[];
+      recipientNames: string[];
     }>>((groups, file) => {
       if (!file.folder_id) {
-        groups[`file-${file.id}`] = { kind: "file", file };
+        const key = `file-${file.id}`;
+        const group = groups[key] ?? {
+          kind: "file" as const,
+          file,
+          recipientNames: [],
+        };
+        if (!group.recipientNames.includes(file.recipient_name)) {
+          group.recipientNames.push(file.recipient_name);
+        }
+        groups[key] = group;
         return groups;
       }
 
@@ -369,8 +387,14 @@ export default function Files() {
         folderId: file.folder_id,
         folderName: file.folder_name || "Folder",
         files: [],
+        recipientNames: [],
       };
-      group.files?.push(file);
+      if (!group.files?.some((entry) => entry.id === file.id)) {
+        group.files?.push(file);
+      }
+      if (!group.recipientNames.includes(file.recipient_name)) {
+        group.recipientNames.push(file.recipient_name);
+      }
       groups[key] = group;
       return groups;
     }, {}));
@@ -432,31 +456,25 @@ export default function Files() {
                 </strong>
               </span>
 
-              <select
-                value={selectedRecipientId ?? ""}
-                onChange={(event) =>
-                  setSelectedRecipientId(
-                    event.target.value
-                      ? Number(event.target.value)
-                      : null,
-                  )
-                }
-                disabled={uploading}
-              >
-                <option value="">
-                  Choose recipient...
-                </option>
-
+              <fieldset className="file-recipient-picker" disabled={uploading}>
+                <legend>Send to employees</legend>
+                <div className="file-recipient-list">
                 {recipients.map((recipient) => (
-                  <option
+                  <label
                     key={recipient.id}
-                    value={recipient.id}
+                    className="file-recipient-option"
                   >
-                    {recipient.name} (
-                    {recipient.role})
-                  </option>
+                    <input
+                      type="checkbox"
+                      checked={selectedRecipientIds.includes(recipient.id)}
+                      onChange={() => toggleRecipient(recipient.id)}
+                    />
+                    <span>{recipient.name}</span>
+                  </label>
                 ))}
-              </select>
+                </div>
+                <small>{selectedRecipientIds.length} selected</small>
+              </fieldset>
 
               <button
                 type="button"
@@ -485,7 +503,7 @@ export default function Files() {
                 className="primary-button"
                 disabled={
                   uploading ||
-                  !selectedRecipientId
+                  selectedRecipientIds.length === 0
                 }
                 onClick={handleUpload}
               >
@@ -691,9 +709,7 @@ export default function Files() {
                         </td>
 
                         <td>
-                          {
-                            file.recipient_name
-                          }
+                          {item.recipientNames.join(", ") || file.recipient_name}
                         </td>
 
                         <td>

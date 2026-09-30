@@ -60,6 +60,7 @@ export interface Notification {
   notification_type: string;
   title: string;
   message: string | null;
+  file_id?: number | null;
   is_read: boolean;
   created_at: string;
 }

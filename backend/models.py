@@ -365,6 +365,11 @@ class Notification(Base):
         nullable=True,
     )
 
+    file_id: Mapped[int | None] = mapped_column(
+        ForeignKey("files.id"),
+        nullable=True,
+    )
+
     is_read: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
@@ -620,7 +625,6 @@ class FileUploadRecipient(Base):
 
     upload_id: Mapped[str] = mapped_column(
         String(64),
-        unique=True,
         nullable=False,
         index=True,
     )

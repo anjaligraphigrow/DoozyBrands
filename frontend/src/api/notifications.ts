@@ -36,3 +36,15 @@ export async function deleteNotification(
 
   return response.data;
 }
+
+export async function deleteAllNotifications(): Promise<{
+  message: string;
+  deleted_count: number;
+}> {
+  const response = await api.delete<{
+    message: string;
+    deleted_count: number;
+  }>("/notifications");
+
+  return response.data;
+}

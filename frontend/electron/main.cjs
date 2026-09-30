@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Notification } = require("electron");
+const { app, BrowserWindow, ipcMain, Notification, shell } = require("electron");
 const path = require("path");
 
 function createWindow() {
@@ -30,6 +30,11 @@ ipcMain.handle("show-desktop-notification", async (_, { title, message, requireI
   });
 
   desktopNotification.show();
+  return true;
+});
+
+ipcMain.handle("play-admin-call-sound", () => {
+  shell.beep();
   return true;
 });
 

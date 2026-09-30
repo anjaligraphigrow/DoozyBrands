@@ -85,6 +85,34 @@ Base.metadata.create_all(bind=engine)
 with engine.begin() as connection:
     connection.execute(
         text(
+            "ALTER TABLE file_upload_recipients "
+            "DROP CONSTRAINT IF EXISTS file_upload_recipients_upload_id_key"
+        )
+    )
+    recipient_index_definition = connection.execute(
+        text(
+            "SELECT indexdef FROM pg_indexes "
+            "WHERE schemaname = current_schema() "
+            "AND indexname = 'ix_file_upload_recipients_upload_id'"
+        )
+    ).scalar()
+    if recipient_index_definition and "CREATE UNIQUE INDEX" in recipient_index_definition.upper():
+        connection.execute(
+            text("DROP INDEX ix_file_upload_recipients_upload_id")
+        )
+    connection.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS ix_file_upload_recipients_upload_id "
+            "ON file_upload_recipients (upload_id)"
+        )
+    )
+    connection.execute(
+        text(
+            "ALTER TABLE notifications ADD COLUMN IF NOT EXISTS file_id INTEGER"
+        )
+    )
+    connection.execute(
+        text(
             "ALTER TABLE clients ADD COLUMN IF NOT EXISTS client_type VARCHAR(20) NOT NULL DEFAULT 'GST'"
         )
     )
@@ -1447,6 +1475,7 @@ async def send_message(
             "type": "notification",
             "notification_id": notification.id,
             "notification_type": notification.notification_type,
+            "sender_id": notification.sender_id,
             "title": notification.title,
             "message": notification.message,
         },
@@ -1749,6 +1778,27 @@ def delete_notification(
 
     return {"message": "Notification deleted successfully."}
 
+@app.delete("/notifications")
+def delete_all_notifications(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    deleted = (
+        db.query(Notification)
+        .filter(
+            Notification.recipient_id == current_user.id,
+            Notification.notification_type != "message",
+        )
+        .delete(synchronize_session=False)
+    )
+
+    db.commit()
+
+    return {
+        "message": "All notifications cleared.",
+        "deleted_count": deleted,
+    }
+
 @app.post("/notifications/read-all")
 def mark_all_notifications_read(
     db: Session = Depends(get_db),
@@ -1893,21 +1943,30 @@ async def start_file_upload(
             detail="File size must be greater than zero.",
         )
 
-    # Validate recipient
-    recipient = (
+    recipient_ids = list(dict.fromkeys(
+        upload_data.recipient_ids
+        or ([upload_data.recipient_id] if upload_data.recipient_id else [])
+    ))
+    if not recipient_ids:
+        raise HTTPException(
+            status_code=400,
+            detail="Select at least one recipient.",
+        )
+
+    recipients = (
         db.query(User)
         .filter(
-            User.id == upload_data.recipient_id,
+            User.id.in_(recipient_ids),
             User.is_active == True,
             User.id != current_user.id,
         )
-        .first()
+        .all()
     )
 
-    if not recipient:
+    if len(recipients) != len(recipient_ids):
         raise HTTPException(
             status_code=404,
-            detail="Recipient not found or inactive.",
+            detail="One or more recipients were not found or are inactive.",
         )
 
     # Create upload session
@@ -1931,13 +1990,14 @@ async def start_file_upload(
     db.add(upload)
     db.flush()
 
-    # Save recipient/access information
-    upload_recipient = FileUploadRecipient(
-        upload_id=upload.upload_id,
-        recipient_id=recipient.id,
+    # Save access information for each recipient.
+    db.add_all(
+        FileUploadRecipient(
+            upload_id=upload.upload_id,
+            recipient_id=recipient.id,
+        )
+        for recipient in recipients
     )
-
-    db.add(upload_recipient)
 
     db.commit()
     db.refresh(upload)
@@ -2136,15 +2196,15 @@ async def complete_file_upload(
         uploaded_by=current_user.id,
         is_complete=True,
     )
-    upload_recipient = (
+    upload_recipients = (
         db.query(FileUploadRecipient)
         .filter(
             FileUploadRecipient.upload_id == upload.upload_id
         )
-        .first()
+        .all()
     )
 
-    if not upload_recipient:
+    if not upload_recipients:
         raise HTTPException(
             status_code=400,
             detail="File recipient information is missing.",
@@ -2152,44 +2212,51 @@ async def complete_file_upload(
     db.add(stored_file)
     db.flush()
 
-    file_share = FileShare(
-        file_id=stored_file.id,
-        recipient_id=upload_recipient.recipient_id,
-        shared_by=current_user.id,
-    )
+    notifications = []
+    for upload_recipient in upload_recipients:
+        db.add(
+            FileShare(
+                file_id=stored_file.id,
+                recipient_id=upload_recipient.recipient_id,
+                shared_by=current_user.id,
+            )
+        )
+        notifications.append(
+            Notification(
+                recipient_id=upload_recipient.recipient_id,
+                sender_id=current_user.id,
+                notification_type="file_received",
+                title="New file received",
+                message=(
+                    f"{current_user.name} sent you a new file: "
+                    f"{stored_file.original_filename}"
+                ),
+                file_id=stored_file.id,
+                is_read=False,
+            )
+        )
 
-    db.add(file_share)
-    db.delete(upload_recipient)
+    db.add_all(notifications)
+    db.query(FileUploadRecipient).filter(
+        FileUploadRecipient.upload_id == upload.upload_id
+    ).delete(synchronize_session=False)
     upload.is_complete = True
-
-    notification = Notification(
-        recipient_id=upload_recipient.recipient_id,
-        sender_id=current_user.id,
-        notification_type="file_received",
-        title="New file received",
-        message=(
-            f"{current_user.name} sent you a new file: "
-            f"{stored_file.original_filename}"
-        ),
-        is_read=False,
-    )
-
-    db.add(notification)
 
     db.commit()
     db.refresh(stored_file)
-    db.refresh(notification)
 
-    await manager.send_to_user(
-        notification.recipient_id,
-        {
-            "type": "notification",
-            "notification_id": notification.id,
-            "notification_type": notification.notification_type,
-            "title": notification.title,
-            "message": notification.message,
-        },
-    )
+    for notification in notifications:
+        await manager.send_to_user(
+            notification.recipient_id,
+            {
+                "type": "notification",
+                "notification_id": notification.id,
+                "notification_type": notification.notification_type,
+                "title": notification.title,
+                "message": notification.message,
+                "file_id": notification.file_id,
+            },
+        )
 
     return FileUploadCompleteResponse(
         upload_id=upload.upload_id,

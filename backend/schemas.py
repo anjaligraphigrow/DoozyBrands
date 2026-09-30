@@ -188,6 +188,7 @@ class NotificationResponse(APIResponseModel):
     notification_type: str
     title: str
     message: str | None
+    file_id: int | None = None
 
     is_read: bool
     created_at: datetime
@@ -254,7 +255,8 @@ class AdminFileTransferHistoryResponse(BaseModel):
 class FileUploadStart(BaseModel):
     filename: str
     total_size: int
-    recipient_id: int
+    recipient_id: int | None = None
+    recipient_ids: list[int] | None = None
     folder_id: str | None = None
     folder_name: str | None = None
 

@@ -109,6 +109,26 @@ export default function Messages() {
   }, [selectedUserId]);
 
   useEffect(() => {
+    function refreshSenderUnreadCount(event: Event) {
+      const senderId = (event as CustomEvent<{ senderId?: number }>).detail?.senderId;
+
+      if (!senderId) {
+        return;
+      }
+
+      getUnreadMessageCountForUser(senderId)
+        .then((count) => {
+          setUnreadCounts((current) => ({ ...current, [senderId]: count }));
+        })
+        .catch(() => undefined);
+    }
+
+    window.addEventListener("office-incoming-message", refreshSenderUnreadCount);
+    return () =>
+      window.removeEventListener("office-incoming-message", refreshSenderUnreadCount);
+  }, []);
+
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
@@ -350,13 +370,16 @@ export default function Messages() {
                 >
                   <span className="message-user-main">
                     <strong>{employee.name}</strong>
+                    {unreadCount > 0 && (
+                      <span
+                        className="message-user-badge"
+                        aria-label={`${unreadCount} unread messages`}
+                        title={`${unreadCount} unread messages`}
+                      >
+                        {unreadCount > 99 ? "99+" : unreadCount}
+                      </span>
+                    )}
                   </span>
-
-                  {unreadCount > 0 && (
-                    <span className="message-user-badge">
-                      {unreadCount > 99 ? "99+" : unreadCount}
-                    </span>
-                  )}
                 </button>
               );
             })

@@ -140,18 +140,46 @@ a {
 /* APP */
 
 .app-shell {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
+  overflow: hidden;
+}
+
+.app-refresh-button {
+  position: fixed;
+  top: 12px;
+  right: 14px;
+  z-index: 1100;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #183247;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 14%);
+  font-size: 16px;
+}
+
+.app-refresh-button:hover {
+  background: #f1f5f9;
 }
 
 .sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 5;
   width: 255px;
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 0;
   background: #172033;
   color: white;
   padding: 24px 16px;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
 }
 
 .brand {
@@ -238,6 +266,9 @@ a {
 .main-content {
   flex: 1;
   min-width: 0;
+  height: 100vh;
+  margin-left: 255px;
+  overflow-y: auto;
 }
 
 .page {
@@ -388,11 +419,17 @@ th {
 @media (max-width: 800px) {
   .app-shell {
     display: block;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
   }
 
   .sidebar {
+    position: static;
     width: 100%;
     min-height: auto;
+    height: auto;
+    overflow: visible;
   }
 
   .navigation {
@@ -402,6 +439,12 @@ th {
 
   .sidebar-bottom {
     margin-top: 20px;
+  }
+
+  .main-content {
+    height: auto;
+    margin-left: 0;
+    overflow: visible;
   }
 
   .page {
@@ -630,14 +673,20 @@ th {
 }
 
 .nav-badge {
-  background: #e53e3e;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #c62828;
   color: white;
   font-size: 11px;
   font-weight: 800;
   border-radius: 999px;
-  padding: 2px 7px;
-  min-width: 18px;
+  padding: 3px 7px;
+  min-width: 22px;
+  min-height: 22px;
   text-align: center;
+  line-height: 1;
+  box-sizing: border-box;
 }
 
 /* ============ TASKS PAGE ============ */
@@ -1223,6 +1272,12 @@ html[data-theme="dark"] .task-month-button:hover {
   color: #ffffff;
 }
 
+html[data-theme="dark"] .task-month-button:hover,
+html[data-theme="dark"] .task-month-button.active {
+  background: #315268;
+  color: #ffffff;
+}
+
 html[data-theme="dark"] .page-header p,
 html[data-theme="dark"] .page-heading p,
 html[data-theme="dark"] .section-heading p,
@@ -1663,6 +1718,8 @@ html[data-theme="dark"] .settings-panel {
 .message-user-main {
   display: inline-flex;
   align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .message-user-badge {
@@ -1673,7 +1730,7 @@ html[data-theme="dark"] .settings-panel {
   height: 22px;
   padding: 0 7px;
   border-radius: 999px;
-  background: #e53935;
+  background: #c62828;
   color: white;
   font-size: 11px;
   font-weight: 700;
@@ -1840,6 +1897,23 @@ html[data-theme="dark"] .settings-panel {
 .notification-item h3 {
   margin: 0 0 4px;
   font-size: 15px;
+}
+
+.notification-file-title {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.notification-file-title:hover {
+  color: var(--accent);
+  text-decoration-thickness: 2px;
 }
 
 .notification-item p {
@@ -2172,6 +2246,43 @@ html[data-theme="dark"] select option {
 
 .file-selected-info select {
   flex: 1 1 220px;
+}
+
+.file-recipient-picker {
+  display: grid;
+  flex: 1 1 100%;
+  gap: 8px;
+  min-width: 240px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+}
+
+.file-recipient-picker legend {
+  padding: 0 5px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.file-recipient-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  max-height: 112px;
+  overflow-y: auto;
+}
+
+.file-recipient-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.file-recipient-picker small {
+  color: #64748b;
 }
 
 .file-selected-info button {
@@ -2588,6 +2699,16 @@ tbody tr:hover {
 .priority-high {
   background: color-mix(in srgb, var(--accent) 12%, white);
   color: color-mix(in srgb, var(--accent) 80%, black);
+}
+
+html[data-theme="dark"] tbody tr:hover,
+html[data-theme="dark"] tbody tr.active,
+html[data-theme="dark"] tbody tr.selected,
+html[data-theme="dark"] .task-table tbody tr:hover,
+html[data-theme="dark"] .message-user:hover,
+html[data-theme="dark"] .message-user.active,
+html[data-theme="dark"] .notification-item:hover {
+  background: #263f50;
 }
 
 html[data-theme="dark"] .stat-card,

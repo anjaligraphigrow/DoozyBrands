@@ -12,7 +12,7 @@ function resolveApiBaseUrl(): string {
   }
 
   if (!import.meta.env.DEV) {
-    return "http://192.168.31.154:8000";
+    return "http://192.168.31.38:8000";
   }
 
   if (hostname === "localhost" || hostname === "127.0.0.1") {

@@ -52,17 +52,20 @@ export async function getFiles(): Promise<FileItem[]> {
 export async function startFileUpload(
   filename: string,
   totalSize: number,
-  recipientId: number,
+  recipientIds: number | number[],
   folderId?: string,
   folderName?: string,
 ): Promise<FileUploadStartResponse> {
+  const recipients = Array.isArray(recipientIds)
+    ? recipientIds
+    : [recipientIds];
   const response =
     await api.post<FileUploadStartResponse>(
       "/files/upload/start",
       {
         filename,
         total_size: totalSize,
-        recipient_id: recipientId,
+        recipient_ids: recipients,
         folder_id: folderId,
         folder_name: folderName,
       },
@@ -121,7 +124,7 @@ export async function deleteFile(
 
 export async function uploadLargeFile(
   file: File,
-  recipientId: number,
+  recipientIds: number[],
   onProgress?: (percentage: number) => void,
   shouldCancel?: () => boolean,
   filename = file.webkitRelativePath || file.name,
@@ -133,7 +136,7 @@ export async function uploadLargeFile(
   const start = await startFileUpload(
     filename,
     file.size,
-    recipientId,
+    recipientIds,
     folderId,
     folderName,
   );

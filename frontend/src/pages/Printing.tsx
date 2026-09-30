@@ -274,7 +274,6 @@ export default function Printing() {
                 <tr>
                   <th>Sr. No</th>
                   <th>Date</th>
-                  <th>Employee</th>
                   <th>Company</th>
                   <th>Description</th>
                   <th>Paper</th>
@@ -290,7 +289,6 @@ export default function Printing() {
                   <tr key={order.id}>
                     <td>{index + 1}</td>
                     <td>{order.date}</td>
-                    <td>{order.employee_name}</td>
                     <td>{order.company}</td>
                     <td>{order.description}</td>
                     <td>{order.paper || "—"}</td>
