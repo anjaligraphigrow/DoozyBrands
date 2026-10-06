@@ -183,7 +183,15 @@ export default function AppLayout() {
         return;
       }
 
-      socket = new WebSocket(`${protocol}://${backendHost}:8000/ws/${user.id}`);
+      const token = localStorage.getItem("access_token");
+      if (!token) {
+        return;
+      }
+
+      socket = new WebSocket(
+        `${protocol}://${backendHost}:8000/ws/${user.id}`,
+        ["office-system", `bearer.${token}`],
+      );
       socket.onopen = () => {
         reconnectDelay = 1000;
       };

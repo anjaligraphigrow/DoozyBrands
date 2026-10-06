@@ -3,6 +3,7 @@ import io
 import os
 import uuid
 import zipfile
+import jwt
 from xml.sax.saxutils import escape
 from pathlib import Path
 from sqlalchemy.orm import Session, aliased
@@ -56,6 +57,7 @@ from schemas import (
 )
 from security import (
     create_access_token,
+    decode_access_token,
     get_current_user,
     get_db,
     hash_password,
@@ -1827,8 +1829,37 @@ def mark_all_notifications_read(
 async def websocket_endpoint(
     websocket: WebSocket,
     user_id: int,
+    db: Session = Depends(get_db),
 ):
-    await manager.connect(user_id, websocket)
+    protocols = [
+        protocol.strip()
+        for protocol in websocket.headers.get("sec-websocket-protocol", "").split(",")
+    ]
+    token_protocol = next(
+        (protocol for protocol in protocols if protocol.startswith("bearer.")),
+        None,
+    )
+
+    try:
+        if "office-system" not in protocols or token_protocol is None:
+            raise ValueError("Missing authentication token.")
+
+        payload = decode_access_token(token_protocol.removeprefix("bearer."))
+        token_user_id = int(payload["sub"])
+    except (jwt.InvalidTokenError, KeyError, TypeError, ValueError):
+        await websocket.close(code=1008)
+        return
+
+    authenticated_user = db.query(User).filter(User.id == token_user_id).first()
+    if (
+        token_user_id != user_id
+        or authenticated_user is None
+        or not authenticated_user.is_active
+    ):
+        await websocket.close(code=1008)
+        return
+
+    await manager.connect(user_id, websocket, subprotocol="office-system")
 
     try:
         while True:

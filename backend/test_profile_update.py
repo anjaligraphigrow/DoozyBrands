@@ -32,30 +32,37 @@ def test_profile_update_persists_to_database():
         db.commit()
         db.refresh(user)
 
-    client = TestClient(app)
-    login = client.post("/login", json={"email": email, "password": password})
-    assert login.status_code == 200, login.text
-    token = login.json()["access_token"]
+    try:
+        client = TestClient(app)
+        login = client.post("/login", json={"email": email, "password": password})
+        assert login.status_code == 200, login.text
+        token = login.json()["access_token"]
 
-    response = client.patch(
-        "/me",
-        headers={"Authorization": f"Bearer {token}"},
-        json={
-            "name": "Updated Name",
-            "phone_number": updated_phone,
-            "password": "NewPass123",
-        },
-    )
+        response = client.patch(
+            "/me",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "name": "Updated Name",
+                "phone_number": updated_phone,
+                "password": "NewPass123",
+            },
+        )
 
-    assert response.status_code == 200, response.text
-    payload = response.json()
-    assert payload["name"] == "Updated Name"
-    assert payload["phone_number"] == updated_phone
+        assert response.status_code == 200, response.text
+        payload = response.json()
+        assert payload["name"] == "Updated Name"
+        assert payload["phone_number"] == updated_phone
 
-    with SessionLocal() as db:
-        saved = db.query(User).filter(User.email == email).first()
-        assert saved is not None
-        assert saved.name == "Updated Name"
-        assert saved.phone_number == updated_phone
+        with SessionLocal() as db:
+            saved = db.query(User).filter(User.email == email).first()
+            assert saved is not None
+            assert saved.name == "Updated Name"
+            assert saved.phone_number == updated_phone
 
-    print("profile update verification passed")
+        print("profile update verification passed")
+    finally:
+        with SessionLocal() as db:
+            user = db.query(User).filter(User.email == email).first()
+            if user:
+                db.delete(user)
+                db.commit()

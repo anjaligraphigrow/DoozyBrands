@@ -5,8 +5,13 @@ class ConnectionManager:
     def __init__(self):
         self.active_connections: dict[int, WebSocket] = {}
 
-    async def connect(self, user_id: int, websocket: WebSocket):
-        await websocket.accept()
+    async def connect(
+        self,
+        user_id: int,
+        websocket: WebSocket,
+        subprotocol: str | None = None,
+    ):
+        await websocket.accept(subprotocol=subprotocol)
         self.active_connections[user_id] = websocket
 
     def disconnect(self, user_id: int):

@@ -7,12 +7,12 @@ function resolveApiBaseUrl(): string {
 
   const hostname = window.location.hostname;
 
-  if (import.meta.env.VITE_API_BASE_URL) {
-    return import.meta.env.VITE_API_BASE_URL;
-  }
-
   if (!import.meta.env.DEV) {
     return "http://192.168.31.38:8000";
+  }
+
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
   }
 
   if (hostname === "localhost" || hostname === "127.0.0.1") {
